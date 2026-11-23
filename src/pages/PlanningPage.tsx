@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
 import TaskItem from '../components/TaskItem'
 import { useTasks } from '../hooks/useTasks'
 import { useAuth } from '../hooks/useAuth'
@@ -55,7 +55,6 @@ export default function PlanningPage() {
             return <TaskItem key={task.id} task={task} completion={completion} readOnly={readOnly} ownerLabel={ownerProfile?.pseudo} onCompletionChange={(next) => changeCompletion(task.id, next)} />
           })}
           {!weeklyTasks.length && <p className="muted-copy">Aucune séance à afficher pour cette semaine.</p>}
-          {week < activeWeek && <p className="missed-note"><CalendarDays size={14} /> Semaine passée : une séance non cochée ne peut pas être rattrapée.</p>}
         </div>}
       </section>
     })}

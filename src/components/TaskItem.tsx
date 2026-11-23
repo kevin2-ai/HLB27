@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, ChevronDown, ChevronUp, Clock3, ExternalLink, LockKeyhole, RotateCcw, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import type { CompletionRow, TaskRow } from '../lib/database.types'
-import { portoNovoDate } from '../lib/dates'
 import { notifyScoresChanged } from '../lib/events'
 import { verifyGitHubWriteup } from '../lib/githubWriteup'
 
@@ -13,8 +12,6 @@ type TaskDetail = { objectives?: string[]; resources?: Resource[] }
 
 function serverMessage(message: string) {
   if (message.includes('autre membre')) return message
-  if (message.includes('pas encore ouverte')) return 'Cette séance n’est pas encore ouverte.'
-  if (message.includes('impossible de la rattraper')) return 'La semaine est terminée : cette séance ne peut plus être cochée.'
   if (message.includes('duplicate key')) return 'Cette séance est déjà cochée.'
   if (message.toLowerCase().includes('writeup') || message.toLowerCase().includes('markdown')) return 'Ajoute un lien GitHub vers un fichier Markdown pour valider cette séance.'
   return 'La validation a échoué. Vérifie ta connexion et réessaie.'
@@ -36,10 +33,8 @@ export default function TaskItem({ task, completion, onCompletionChange, readOnl
   const [optimistic, setOptimistic] = useState(false)
   const [showPoints, setShowPoints] = useState(false)
   const reduceMotion = useReducedMotion()
-  const today = portoNovoDate()
   const isCompleted = completion ? completion.cancelled_at === null : optimistic
   const cancelled = Boolean(completion?.cancelled_at)
-  const locked = today < task.starts_on || today > task.ends_on
   const requiresWriteup = task.kind === 'individual' && task.week >= 2
   const score = task.presenter_member && task.presenter_member === profile?.member_key ? 15 : 10
   const detail = useMemo<TaskDetail | null>(() => {
@@ -48,7 +43,7 @@ export default function TaskItem({ task, completion, onCompletionChange, readOnl
   }, [task.description])
 
   async function toggle(submittedWriteup?: string) {
-    if (!supabase || !user || busy || locked || cancelled) return
+    if (!supabase || !user || busy || cancelled) return
     if (!isCompleted && requiresWriteup && submittedWriteup === undefined) {
       setError('')
       setWriteupDraft('')
@@ -94,7 +89,7 @@ export default function TaskItem({ task, completion, onCompletionChange, readOnl
 
   return (
     <motion.article className={`task-card${isCompleted ? ' task-done' : ''}${cancelled ? ' task-cancelled' : ''}`} initial={reduceMotion ? false : { opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .18 }}>
-      <button className="task-check" type="button" role="checkbox" aria-checked={isCompleted} aria-label={`${isCompleted ? 'Décocher' : 'Cocher'} ${task.title}`} disabled={readOnly || locked || cancelled || busy} onClick={() => void toggle()}>
+      <button className="task-check" type="button" role="checkbox" aria-checked={isCompleted} aria-label={`${isCompleted ? 'Décocher' : 'Cocher'} ${task.title}`} disabled={readOnly || cancelled || busy} onClick={() => void toggle()}>
         {isCompleted && <Check size={16} strokeWidth={3} />}
         {busy && <span className="spinner" />}
         {showPoints && !reduceMotion && <span className="points-float">+{score}</span>}
@@ -109,7 +104,6 @@ export default function TaskItem({ task, completion, onCompletionChange, readOnl
         {task.presenter_member === profile?.member_key && <span className="presenter-badge">Tu présentes ! · +5</span>}
         {requiresWriteup && !isCompleted && !cancelled && <span className="task-state writeup-required">Write-up GitHub requis pour valider.</span>}
         {cancelled && <p className="task-state error-text">Annulée par l’admin : {completion?.cancel_reason}</p>}
-        {!cancelled && locked && <p className="task-state"><LockKeyhole size={13} /> {today < task.starts_on ? `Ouverture le ${task.starts_on}` : 'Semaine terminée — séance verrouillée'}</p>}
         {error && <p className="task-state error-text" role="alert">{error}</p>}
         {completion?.writeup_url && !cancelled && <a className="task-writeup-link" href={completion.writeup_url} target="_blank" rel="noopener noreferrer">Voir le write-up <ExternalLink size={13} /></a>}
         {task.topic && <p className="task-topic">{task.topic}</p>}
@@ -120,8 +114,7 @@ export default function TaskItem({ task, completion, onCompletionChange, readOnl
           {!!detail.objectives?.length && <><strong>Objectifs</strong><ul>{detail.objectives.map((objective) => <li key={objective}>{objective}</li>)}</ul></>}
           {!!detail.resources?.length && <><strong>Ressources</strong><ul>{detail.resources.map((resource) => <li key={resource.url}><a href={resource.url} target="_blank" rel="noopener noreferrer">{resource.name}<ExternalLink size={12} /></a></li>)}</ul></>}
         </div>}
-        {completion && !cancelled && !locked && <span className="task-state"><RotateCcw size={12} /> Tu peux encore décocher avant dimanche.</span>}
-        {locked && <span className="sr-only"><Clock3 size={1} /> Validation indisponible</span>}
+        {completion && !cancelled && <span className="task-state"><RotateCcw size={12} /> Tu peux décocher cette séance à tout moment.</span>}
       </div>
       {showWriteupDialog && <div className="dialog-backdrop writeup-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setShowWriteupDialog(false) }}>
         <section className="panel writeup-dialog" role="dialog" aria-modal="true" aria-labelledby={`writeup-title-${task.id}`}>

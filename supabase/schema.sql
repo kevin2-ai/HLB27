@@ -177,18 +177,16 @@ create trigger on_profile_created_assign_tasks
 after insert on public.profiles
 for each row execute function public.on_profile_created_assign_tasks();
 
--- La coche est limitée à la tâche du membre et à sa semaine (heure de Porto-Novo).
+-- La coche vérifie l'attribution et le write-up, sans verrouillage par date.
 create or replace function public.check_completion() returns trigger
 language plpgsql security definer set search_path = public, pg_temp as $$
-declare t public.tasks; me public.profiles; today date;
+declare t public.tasks; me public.profiles;
 begin
   select * into t from public.tasks where id = new.task_id;
   select * into me from public.profiles where id = new.user_id;
   if t.id is null or me.id is null then
     raise exception 'Séance ou profil introuvable';
   end if;
-  today := (now() at time zone 'Africa/Porto-Novo')::date;
-
   if t.owner_member is not null and t.owner_member <> me.member_key then
     raise exception 'Cette séance appartient à un autre membre';
   end if;
@@ -199,13 +197,6 @@ begin
   else
     new.writeup_url := null;
   end if;
-  if today < t.starts_on then
-    raise exception 'Cette séance n''est pas encore ouverte';
-  end if;
-  if today > t.ends_on then
-    raise exception 'Séance terminée : impossible de la rattraper';
-  end if;
-
   new.completed_at := now();
   new.cancelled_at := null;
   new.cancelled_by := null;
@@ -290,13 +281,8 @@ create policy comp_delete_own on public.completions for delete to authenticated
   using (
     user_id = auth.uid()
     and cancelled_at is null
-    and exists (
-      select 1 from public.tasks t
-      where t.id = task_id
-        and (now() at time zone 'Africa/Porto-Novo')::date <= t.ends_on
-    )
   );
--- Aucune policy UPDATE sur completions : seules les fonctions admin écrivent les annulations.
+-- Les membres peuvent décocher leurs validations à tout moment; aucune policy UPDATE : seules les fonctions admin écrivent les annulations.
 
 create policy adj_read on public.point_adjustments for select to authenticated using (true);
 create policy adj_insert on public.point_adjustments for insert to authenticated

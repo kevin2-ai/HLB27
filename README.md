@@ -5,7 +5,7 @@ Application de suivi de préparation sur 24 semaines. L'interface est en frança
 ## Fonctionnalités
 
 - Authentification Supabase par email, inscription déclenchée uniquement par invitation et accès admin réservé.
-- Planning interactif sur 24 semaines, verrouillage des semaines terminées, cases à cocher et détail des objectifs et ressources.
+- Planning interactif sur 24 semaines, validations et modifications accessibles sans verrouillage par date, avec détail des objectifs et ressources.
 - Write-up GitHub exigé pour chaque tâche individuelle à partir du cycle 1 ; le dépôt et le fichier Markdown public sont vérifiés avant validation. Les séances de mise en place n’en exigent pas.
 - Classement individuel lu depuis la vue `leaderboard`, score d'équipe séparé, fil d'activité et grille de progression en lecture seule.
 - Administration des invitations, ajustements motivés, annulation/restauration des coches, événements CTF et exports CSV.
@@ -40,7 +40,7 @@ Copier `.env.example` vers `.env.local`, puis renseigner `VITE_SUPABASE_URL` et 
 ## Configuration Supabase
 
 1. Créer un projet Supabase et ouvrir son SQL Editor.
-2. Exécuter `supabase/schema.sql`. Sur un projet déjà initialisé, exécuter les migrations dans l'ordre : `20261122_signup_specialties.sql`, `20261123_require_specialties_and_assign_tasks.sql`, `20261124_profile_pseudo.sql`, puis `20261125_required_github_writeups.sql`.
+2. Exécuter `supabase/schema.sql`. Sur un projet déjà initialisé, exécuter les migrations dans l'ordre : `20261122_signup_specialties.sql`, `20261123_require_specialties_and_assign_tasks.sql`, `20261124_profile_pseudo.sql`, `20261125_required_github_writeups.sql`, puis `20261126_unblock_task_dates.sql`.
 3. Remplacer les adresses `@example.invalid` dans `supabase/seed_invitations.sql` par les vraies adresses, puis exécuter le seed. Kevin est le seul administrateur initial.
 4. Exécuter `npm run generate:tasks`, puis le fichier `supabase/seed_tasks.sql` produit par le script.
 5. Dans Authentication > URL Configuration, définir l'URL du site et ajouter les URLs locales et GitHub Pages aux redirections autorisées.
