@@ -44,7 +44,10 @@ export default function DashboardPage() {
 
   return <div className="dashboard-page">
     <section className="dashboard-hero panel">
-      <div><span className="eyebrow">HACKERLAB BÉNIN · 2027</span><h1 className="title-gradient">La préparation commence</h1><p>Chaque séance nous rapproche du prochain CTF.</p></div>
+      <div className="dashboard-hero-main">
+        <img className="dashboard-hero-image" src={`${import.meta.env.BASE_URL}hlb.jpg`} alt="Logo HackerLab 2027" />
+        <div className="dashboard-hero-copy"><span className="eyebrow">HACKERLAB BÉNIN · 2027</span><h1 className="title-gradient">La préparation commence</h1><p>Chaque séance nous rapproche du prochain CTF.</p></div>
+      </div>
       <div className="hero-week"><span>SEMAINE EN COURS</span><strong>S{String(week).padStart(2, '0')} <small>/ 24</small></strong><em>{formatDateRange(week)}</em></div>
     </section>
 

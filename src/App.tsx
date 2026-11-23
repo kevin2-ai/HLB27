@@ -37,8 +37,10 @@ export default function App() {
       <Route path="*" element={
         <ProtectedRoute><div className="app-shell min-h-screen">
           <aside className="sidebar">
-            <div className="brand-mark">H<span>27</span></div>
-            <div className="brand-copy"><strong>HackerLab</strong><small>BÉNIN · 2027</small></div>
+            <div className="sidebar-brand">
+              <img className="sidebar-brand-image" src={`${import.meta.env.BASE_URL}hlb2.jpg`} alt="" />
+              <span className="sidebar-brand-text"><strong>HACKER</strong><strong>LAB</strong></span>
+            </div>
             <nav aria-label="Navigation principale">
               {navigation.filter((item) => item.to !== '/admin' || profile?.role === 'admin').map(({ to, label, icon: Icon, end }) => (
                 <NavLink key={to} to={to} end={end} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
