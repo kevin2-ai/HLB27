@@ -28,6 +28,7 @@ export type CompletionRow = {
   cancelled_at: string | null
   cancelled_by: string | null
   cancel_reason: string | null
+  writeup_url: string | null
 }
 
 export type ProfileRow = {
@@ -54,7 +55,7 @@ export type Database = {
     Tables: {
       profiles: TableShape<ProfileRow>
       tasks: TableShape<TaskRow>
-      completions: TableShape<CompletionRow, { user_id: string; task_id: string }>
+      completions: TableShape<CompletionRow, { user_id: string; task_id: string; writeup_url?: string | null }>
       invitations: TableShape<{ email: string; member_key: string; pseudo: string; main_spec: string | null; second_spec: string | null; role: 'member' | 'admin'; created_at: string }, { email: string; member_key: string; pseudo: string; main_spec?: string | null; second_spec?: string | null; role?: 'member' | 'admin' }>
       point_adjustments: TableShape<{ id: number; user_id: string; delta: number; reason: string; created_by: string; created_at: string }, { user_id: string; delta: number; reason: string; created_by: string }>
       team_score_events: TableShape<{ id: number; points: number; reason: string; created_by: string; created_at: string }, { points: number; reason: string; created_by: string }>

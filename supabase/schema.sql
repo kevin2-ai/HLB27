@@ -48,6 +48,7 @@ create table public.completions (
   cancelled_at timestamptz,
   cancelled_by uuid references public.profiles(id),
   cancel_reason text,
+  writeup_url text,
   unique (user_id, task_id)
 );
 
@@ -190,6 +191,13 @@ begin
 
   if t.owner_member is not null and t.owner_member <> me.member_key then
     raise exception 'Cette séance appartient à un autre membre';
+  end if;
+  if t.kind = 'individual' and t.week >= 2 then
+    if new.writeup_url is null or new.writeup_url !~* '^https://github\.com/[A-Za-z0-9-]+/[A-Za-z0-9._-]+/blob/[A-Za-z0-9._-]+/.+\.md([?#].*)?$' then
+      raise exception 'Un lien GitHub vers un fichier Markdown est obligatoire pour cette séance';
+    end if;
+  else
+    new.writeup_url := null;
   end if;
   if today < t.starts_on then
     raise exception 'Cette séance n''est pas encore ouverte';
