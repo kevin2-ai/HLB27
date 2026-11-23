@@ -1,7 +1,8 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import { CalendarDays, Home, LogOut, Shield, Trophy } from 'lucide-react'
 import { useAuth } from './hooks/useAuth'
+import ProfileModal from './components/ProfileModal'
 
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
@@ -26,6 +27,7 @@ function ProtectedRoute({ children, admin = false }: { children: ReactNode; admi
 
 export default function App() {
   const { profile, signOut, recovery } = useAuth()
+  const [profileOpen, setProfileOpen] = useState(false)
   if (recovery) return <Suspense fallback={<main className="auth-screen"><div className="loading-card panel">Chargement…</div></main>}><AuthPage mode="reset" /></Suspense>
   return (
     <Suspense fallback={<main className="auth-screen"><div className="loading-card panel">Chargement…</div></main>}><Routes>
@@ -50,7 +52,7 @@ export default function App() {
           <main className="main-content">
             <header className="topbar">
               <div><span className="eyebrow">ESPACE DE PRÉPARATION</span><p>{profile?.pseudo ? `Bonjour, ${profile.pseudo}` : 'Une équipe. Un objectif.'}</p></div>
-              <div className="topbar-actions"><span className="season-pill">SAISON 2026—27</span><button className="icon-button" onClick={() => void signOut()} aria-label="Se déconnecter" title="Se déconnecter"><LogOut size={17} /></button></div>
+              <div className="topbar-actions"><button className="profile-avatar" type="button" onClick={() => setProfileOpen(true)} aria-label="Ouvrir mon profil" title="Mon profil">{profile?.member_key.charAt(0).toLocaleUpperCase() ?? 'M'}</button><span className="season-pill">SAISON 2026—27</span><button className="icon-button" onClick={() => void signOut()} aria-label="Se déconnecter" title="Se déconnecter"><LogOut size={17} /></button></div>
             </header>
             <Routes>
               <Route path="/" element={<DashboardPage />} />
@@ -69,6 +71,7 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
+          {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
         </div></ProtectedRoute>
       } />
     </Routes></Suspense>

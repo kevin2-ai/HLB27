@@ -39,7 +39,7 @@ Copier `.env.example` vers `.env.local`, puis renseigner `VITE_SUPABASE_URL` et 
 ## Configuration Supabase
 
 1. Créer un projet Supabase et ouvrir son SQL Editor.
-2. Exécuter `supabase/schema.sql`. Sur un projet déjà initialisé, exécuter les migrations `20261122_signup_specialties.sql` puis `20261123_require_specialties_and_assign_tasks.sql`.
+2. Exécuter `supabase/schema.sql`. Sur un projet déjà initialisé, exécuter les migrations dans l'ordre : `20261122_signup_specialties.sql`, `20261123_require_specialties_and_assign_tasks.sql`, puis `20261124_profile_pseudo.sql`.
 3. Remplacer les adresses `@example.invalid` dans `supabase/seed_invitations.sql` par les vraies adresses, puis exécuter le seed. Kevin est le seul administrateur initial.
 4. Exécuter `npm run generate:tasks`, puis le fichier `supabase/seed_tasks.sql` produit par le script.
 5. Dans Authentication > URL Configuration, définir l'URL du site et ajouter les URLs locales et GitHub Pages aux redirections autorisées.

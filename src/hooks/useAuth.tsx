@@ -20,6 +20,7 @@ type AuthContextValue = {
   message: string | null
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string, mainSpec: string, secondSpec: string) => Promise<string | null>
+  updatePseudo: (pseudo: string) => Promise<string | null>
   resetPassword: (email: string) => Promise<string | null>
   updatePassword: (password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -107,6 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return 'Inscription sur invitation uniquement. Demande à Kevin.'
       }
       return authError(error.message)
+    },
+    updatePseudo: async (pseudo) => {
+      if (!supabase) return 'Le service de connexion n’est pas encore configuré.'
+      const { data, error } = await supabase.rpc('update_my_pseudo', { p_pseudo: pseudo.trim() })
+      if (error) return error.message.toLowerCase().includes('pseudo') ? 'Le pseudo doit contenir entre 2 et 24 caractères.' : 'Impossible d’enregistrer le pseudo. Réessaie.'
+      if (data) setProfile((current) => current ? { ...current, pseudo: data } : current)
+      return null
     },
     resetPassword: async (email) => {
       if (!supabase) return 'Le service de connexion n’est pas encore configuré.'

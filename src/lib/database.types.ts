@@ -66,6 +66,7 @@ export type Database = {
     Functions: {
       admin_cancel_completion: { Args: { p_id: number; p_reason: string }; Returns: undefined }
       admin_restore_completion: { Args: { p_id: number }; Returns: undefined }
+      update_my_pseudo: { Args: { p_pseudo: string }; Returns: string }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

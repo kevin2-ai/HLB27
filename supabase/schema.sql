@@ -116,6 +116,22 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+-- Un membre peut modifier uniquement son pseudo, sans accès aux autres champs du profil.
+create or replace function public.update_my_pseudo(p_pseudo text) returns text
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare cleaned_pseudo text := trim(coalesce(p_pseudo, ''));
+begin
+  if auth.uid() is null then raise exception 'Connexion requise'; end if;
+  if char_length(cleaned_pseudo) < 2 or char_length(cleaned_pseudo) > 24 then
+    raise exception 'Le pseudo doit contenir entre 2 et 24 caractères';
+  end if;
+  update public.profiles set pseudo = cleaned_pseudo where id = auth.uid();
+  if not found then raise exception 'Profil introuvable'; end if;
+  return cleaned_pseudo;
+end $$;
+revoke all on function public.update_my_pseudo(text) from public, anon;
+grant execute on function public.update_my_pseudo(text) to authenticated;
+
 -- Chaque membre reçoit automatiquement quatre tâches individuelles par semaine.
 create or replace function public.assign_personal_tasks(p_member_key text, p_main_spec text, p_second_spec text)
 returns void language sql security definer set search_path = public, pg_temp as $$
