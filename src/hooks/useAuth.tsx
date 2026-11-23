@@ -34,8 +34,11 @@ function authError(error: string) {
   if (normalized.includes('spécialité')) return 'L’une des spécialités choisies n’est pas valide.'
   if (normalized.includes('invalid login credentials')) return 'Adresse email ou mot de passe incorrect.'
   if (normalized.includes('user already registered')) return 'Cette adresse email possède déjà un compte.'
+  if (normalized.includes('email_address_not_authorized') || normalized.includes('email address not authorized')) return 'Cette adresse est valide, mais Supabase ne peut pas lui envoyer de confirmation avec le service email par défaut. Configure un SMTP personnalisé ou désactive la confirmation email.'
+  if (normalized.includes('over_email_send_rate_limit') || normalized.includes('email rate limit exceeded')) return 'La limite d’envoi des emails est atteinte. Réessaie plus tard ou configure un SMTP personnalisé.'
+  if (normalized.includes('email_not_confirmed') || normalized.includes('email not confirmed')) return 'Confirme ton adresse depuis le lien reçu par email avant de te connecter.'
+  if (normalized.includes('email_address_invalid') || normalized.includes('invalid email')) return 'Vérifie le format de ton adresse email.'
   if (normalized.includes('password')) return 'Le mot de passe doit contenir au moins 8 caractères.'
-  if (normalized.includes('email')) return 'Vérifie le format de ton adresse email.'
   return 'Une erreur est survenue. Vérifie ta connexion puis réessaie.'
 }
 
