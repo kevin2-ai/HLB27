@@ -51,7 +51,7 @@ Les règles sont protégées par RLS, contraintes et fonctions SQL. Le navigateu
 ## Déploiement GitHub Pages
 
 1. Pousser le dépôt sur la branche `main` d'un dépôt GitHub nommé `HLB27` (la base Vite est `/HLB27/`).
-2. Dans Settings > Secrets and variables > Actions > Variables, définir `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY`.
+2. Dans Settings > Secrets and variables > Actions > Secrets, définir `VITE_SUPABASE_URL` et `VITE_SUPABASE_PUBLISHABLE_KEY`.
 3. Dans Settings > Pages, choisir GitHub Actions comme source. `.github/workflows/deploy.yml` publie chaque push sur `main`.
 4. Ouvrir `https://<compte>.github.io/HLB27/` et autoriser cette adresse dans la configuration Supabase.
 
