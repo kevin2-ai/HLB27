@@ -10,7 +10,7 @@ function getDisplayName(memberKey: string) {
 }
 
 export default function ProfileModal({ onClose }: { onClose: () => void }) {
-  const { profile, updatePseudo } = useAuth()
+  const { profile, updatePseudo, updateSpecialties } = useAuth()
   const name = profile ? getDisplayName(profile.member_key) : ''
   const currentPseudo = profile?.pseudo ?? ''
   const hasCustomPseudo = currentPseudo.trim().toLocaleLowerCase() !== name.trim().toLocaleLowerCase()
@@ -18,6 +18,9 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState(hasCustomPseudo ? currentPseudo : '')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
+  const [editingSpecialties, setEditingSpecialties] = useState(false)
+  const [mainSpec, setMainSpec] = useState(profile?.main_spec ?? '')
+  const [secondSpec, setSecondSpec] = useState(profile?.second_spec ?? '')
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -40,6 +43,19 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  async function saveSpecialties(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBusy(true)
+    setFeedback('')
+    const error = await updateSpecialties(mainSpec, secondSpec)
+    setBusy(false)
+    if (error) setFeedback(error)
+    else {
+      setFeedback('Spécialités enregistrées. Ton planning a été mis à jour.')
+      setEditingSpecialties(false)
+    }
+  }
+
   return <div className="dialog-backdrop profile-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="panel profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-title">
       <button className="icon-button profile-close" type="button" onClick={onClose} aria-label="Fermer"><X size={18} /></button>
@@ -58,9 +74,17 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
       </div>
       {feedback && <div className="notice profile-feedback" role="status">{feedback}</div>}
 
-      <div className="profile-detail"><span>Spécialités</span><div className="profile-specialties">
-        {[profile?.main_spec, profile?.second_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="profile-specialty" key={key}><UserRound size={15} /><div><small>{index === 0 ? 'Principale' : 'Secondaire'}</small><strong>{SPECIALTY_LABELS[key] ?? key}</strong></div></div>)}
-      </div></div>
+      <div className="profile-detail"><div className="profile-specialty-heading"><span>Spécialités</span>{!editingSpecialties && <button className="button-outline" type="button" onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setEditingSpecialties(true); setFeedback('') }}><Pencil size={14} /> Modifier</button>}</div>
+        {editingSpecialties ? <form className="profile-specialty-form" onSubmit={(event) => void saveSpecialties(event)}>
+          <label>Spécialité principale<select value={mainSpec} required onChange={(event) => setMainSpec(event.target.value)}><option value="">Choisir une spécialité</option>{Object.entries(SPECIALTY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          <label>Spécialité secondaire<select value={secondSpec} required onChange={(event) => setSecondSpec(event.target.value)}><option value="">Choisir une spécialité</option>{Object.entries(SPECIALTY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          {mainSpec && mainSpec === secondSpec && <small className="profile-form-error">Les deux spécialités doivent être différentes.</small>}
+          <button className="button-primary" type="submit" disabled={busy || !mainSpec || !secondSpec || mainSpec === secondSpec}><Check size={15} />{busy ? 'Enregistrement…' : 'Enregistrer les spécialités'}</button>
+          <button className="button-outline" type="button" disabled={busy} onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setEditingSpecialties(false); setFeedback('') }}>Annuler</button>
+        </form> : <div className="profile-specialties">
+          {[profile?.main_spec, profile?.second_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="profile-specialty" key={key}><UserRound size={15} /><div><small>{index === 0 ? 'Principale' : 'Secondaire'}</small><strong>{SPECIALTY_LABELS[key] ?? key}</strong></div></div>)}
+        </div>}
+      </div>
     </section>
   </div>
 }

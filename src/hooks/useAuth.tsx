@@ -21,6 +21,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string, mainSpec: string, secondSpec: string) => Promise<string | null>
   updatePseudo: (pseudo: string) => Promise<string | null>
+  updateSpecialties: (mainSpec: string, secondSpec: string) => Promise<string | null>
   resetPassword: (email: string) => Promise<string | null>
   updatePassword: (password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -114,6 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.rpc('update_my_pseudo', { p_pseudo: pseudo.trim() })
       if (error) return error.message.toLowerCase().includes('pseudo') ? 'Le pseudo doit contenir entre 2 et 24 caractères.' : 'Impossible d’enregistrer le pseudo. Réessaie.'
       if (data) setProfile((current) => current ? { ...current, pseudo: data } : current)
+      return null
+    },
+    updateSpecialties: async (mainSpec, secondSpec) => {
+      if (!supabase) return 'Le service de connexion n’est pas encore configuré.'
+      const { error } = await supabase.rpc('update_my_specialties', { p_main_spec: mainSpec, p_second_spec: secondSpec })
+      if (error) {
+        const message = error.message.toLowerCase()
+        if (message.includes('deux spécialités') || message.includes('différentes')) return 'Choisis deux spécialités différentes.'
+        if (message.includes('spécialité')) return 'La spécialité choisie n’est pas valide.'
+        return 'Impossible d’enregistrer les spécialités. Vérifie que la migration a été exécutée, puis réessaie.'
+      }
+      setProfile((current) => current ? { ...current, main_spec: mainSpec, second_spec: secondSpec } : current)
       return null
     },
     resetPassword: async (email) => {
