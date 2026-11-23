@@ -21,6 +21,8 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
   const [editingSpecialties, setEditingSpecialties] = useState(false)
   const [mainSpec, setMainSpec] = useState(profile?.main_spec ?? '')
   const [secondSpec, setSecondSpec] = useState(profile?.second_spec ?? '')
+  const [thirdSpec, setThirdSpec] = useState(profile?.third_spec ?? '')
+  const hasDuplicateSpecialties = [mainSpec, secondSpec, thirdSpec].filter(Boolean).some((key, index, keys) => keys.indexOf(key) !== index)
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -47,11 +49,11 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
     event.preventDefault()
     setBusy(true)
     setFeedback('')
-    const error = await updateSpecialties(mainSpec, secondSpec)
+    const error = await updateSpecialties(mainSpec, secondSpec, thirdSpec || null)
     setBusy(false)
     if (error) setFeedback(error)
     else {
-      setFeedback('Spécialités enregistrées. Ton planning a été mis à jour.')
+      setFeedback('Spécialités enregistrées. Ton planning futur a été mis à jour.')
       setEditingSpecialties(false)
     }
   }
@@ -74,15 +76,16 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
       </div>
       {feedback && <div className="notice profile-feedback" role="status">{feedback}</div>}
 
-      <div className="profile-detail"><div className="profile-specialty-heading"><span>Spécialités</span>{!editingSpecialties && <button className="button-outline" type="button" onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setEditingSpecialties(true); setFeedback('') }}><Pencil size={14} /> Modifier</button>}</div>
+      <div className="profile-detail"><div className="profile-specialty-heading"><span>Spécialités</span>{!editingSpecialties && <button className="button-outline" type="button" onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setThirdSpec(profile?.third_spec ?? ''); setEditingSpecialties(true); setFeedback('') }}><Pencil size={14} /> Modifier</button>}</div>
         {editingSpecialties ? <form className="profile-specialty-form" onSubmit={(event) => void saveSpecialties(event)}>
           <label>Spécialité principale<select value={mainSpec} required onChange={(event) => setMainSpec(event.target.value)}><option value="">Choisir une spécialité</option>{Object.entries(SPECIALTY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           <label>Spécialité secondaire<select value={secondSpec} required onChange={(event) => setSecondSpec(event.target.value)}><option value="">Choisir une spécialité</option>{Object.entries(SPECIALTY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-          {mainSpec && mainSpec === secondSpec && <small className="profile-form-error">Les deux spécialités doivent être différentes.</small>}
-          <button className="button-primary" type="submit" disabled={busy || !mainSpec || !secondSpec || mainSpec === secondSpec}><Check size={15} />{busy ? 'Enregistrement…' : 'Enregistrer les spécialités'}</button>
-          <button className="button-outline" type="button" disabled={busy} onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setEditingSpecialties(false); setFeedback('') }}>Annuler</button>
+          <label>3e spécialité <small>(facultative)</small><select value={thirdSpec} onChange={(event) => setThirdSpec(event.target.value)}><option value="">Ajouter une spécialité</option>{Object.entries(SPECIALTY_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+          {hasDuplicateSpecialties && <small className="profile-form-error">Chaque spécialité doit être différente.</small>}
+          <button className="button-primary" type="submit" disabled={busy || !mainSpec || !secondSpec || hasDuplicateSpecialties}><Check size={15} />{busy ? 'Enregistrement…' : 'Enregistrer les spécialités'}</button>
+          <button className="button-outline" type="button" disabled={busy} onClick={() => { setMainSpec(profile?.main_spec ?? ''); setSecondSpec(profile?.second_spec ?? ''); setThirdSpec(profile?.third_spec ?? ''); setEditingSpecialties(false); setFeedback('') }}>Annuler</button>
         </form> : <div className="profile-specialties">
-          {[profile?.main_spec, profile?.second_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="profile-specialty" key={key}><UserRound size={15} /><div><small>{index === 0 ? 'Principale' : 'Secondaire'}</small><strong>{SPECIALTY_LABELS[key] ?? key}</strong></div></div>)}
+          {[profile?.main_spec, profile?.second_spec, profile?.third_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="profile-specialty" key={key}><UserRound size={15} /><div><small>{['Principale', 'Secondaire', 'Troisième'][index]}</small><strong>{SPECIALTY_LABELS[key] ?? key}</strong></div></div>)}
         </div>}
       </div>
     </section>

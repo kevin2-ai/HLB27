@@ -8,6 +8,7 @@ export type Profile = {
   pseudo: string
   main_spec: string | null
   second_spec: string | null
+  third_spec: string | null
   role: 'member' | 'admin'
 }
 
@@ -21,7 +22,7 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string, mainSpec: string, secondSpec: string) => Promise<string | null>
   updatePseudo: (pseudo: string) => Promise<string | null>
-  updateSpecialties: (mainSpec: string, secondSpec: string) => Promise<string | null>
+  updateSpecialties: (mainSpec: string, secondSpec: string, thirdSpec: string | null) => Promise<string | null>
   resetPassword: (email: string) => Promise<string | null>
   updatePassword: (password: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -67,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false)
         return
       }
-      const { data, error } = await client.from('profiles').select('id, member_key, pseudo, main_spec, second_spec, role').eq('id', current.user.id).maybeSingle()
+      const { data, error } = await client.from('profiles').select('id, member_key, pseudo, main_spec, second_spec, third_spec, role').eq('id', current.user.id).maybeSingle()
       if (!active) return
       setProfile(data as Profile | null)
       setMessage(error ? 'Impossible de charger ton profil. Réessaie dans un instant.' : null)
@@ -117,16 +118,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data) setProfile((current) => current ? { ...current, pseudo: data } : current)
       return null
     },
-    updateSpecialties: async (mainSpec, secondSpec) => {
+    updateSpecialties: async (mainSpec, secondSpec, thirdSpec) => {
       if (!supabase) return 'Le service de connexion n’est pas encore configuré.'
-      const { error } = await supabase.rpc('update_my_specialties', { p_main_spec: mainSpec, p_second_spec: secondSpec })
+      const { error } = await supabase.rpc('update_my_specialties', { p_main_spec: mainSpec, p_second_spec: secondSpec, p_third_spec: thirdSpec })
       if (error) {
         const message = error.message.toLowerCase()
-        if (message.includes('deux spécialités') || message.includes('différentes')) return 'Choisis deux spécialités différentes.'
+        if (message.includes('spécialités') || message.includes('différentes')) return 'Choisis des spécialités différentes.'
         if (message.includes('spécialité')) return 'La spécialité choisie n’est pas valide.'
         return 'Impossible d’enregistrer les spécialités. Vérifie que la migration a été exécutée, puis réessaie.'
       }
-      setProfile((current) => current ? { ...current, main_spec: mainSpec, second_spec: secondSpec } : current)
+      setProfile((current) => current ? { ...current, main_spec: mainSpec, second_spec: secondSpec, third_spec: thirdSpec } : current)
       return null
     },
     resetPassword: async (email) => {

@@ -67,7 +67,7 @@ export default function DashboardPage() {
 
         <aside className="side-stack">
           <section className="panel specialty-card"><div className="section-title compact"><div><span className="eyebrow">MES SPÉCIALITÉS</span><h2>Mes compartiments</h2></div><Sparkles size={17} /></div>
-            {[profile?.main_spec, profile?.second_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="specialty-item" key={key}><div className="specialty-head"><strong>{SPECIALTY_LABELS[key] ?? key}</strong><span>{index === 0 ? 'Principale' : 'Secondaire'}</span></div><div className="level-grid">{specialtyProgress(key).map((progress) => <div key={progress.level}><small>N{progress.level}</small><strong>{progress.done}<i>/{progress.total}</i></strong></div>)}</div></div>)}
+            {[profile?.main_spec, profile?.second_spec, profile?.third_spec].filter((key): key is string => Boolean(key)).map((key, index) => <div className="specialty-item" key={key}><div className="specialty-head"><strong>{SPECIALTY_LABELS[key] ?? key}</strong><span>{['Principale', 'Secondaire', 'Troisième'][index]}</span></div><div className="level-grid">{specialtyProgress(key).map((progress) => <div key={progress.level}><small>N{progress.level}</small><strong>{progress.done}<i>/{progress.total}</i></strong></div>)}</div></div>)}
             {profile?.member_key === 'kevin' && <div className="optional-module"><Sparkles size={14} /> Module optionnel proposé : <strong>Système / pwn</strong></div>}
           </section>
 

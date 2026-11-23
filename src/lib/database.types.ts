@@ -37,6 +37,7 @@ export type ProfileRow = {
   pseudo: string
   main_spec: string | null
   second_spec: string | null
+  third_spec: string | null
   role: 'member' | 'admin'
   created_at: string
 }
@@ -68,7 +69,7 @@ export type Database = {
       admin_cancel_completion: { Args: { p_id: number; p_reason: string }; Returns: undefined }
       admin_restore_completion: { Args: { p_id: number }; Returns: undefined }
       update_my_pseudo: { Args: { p_pseudo: string }; Returns: string }
-      update_my_specialties: { Args: { p_main_spec: string; p_second_spec: string }; Returns: undefined }
+      update_my_specialties: { Args: { p_main_spec: string; p_second_spec: string; p_third_spec: string | null }; Returns: undefined }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

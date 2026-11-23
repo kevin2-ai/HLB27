@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { CompletionRow, ProfileRow, TaskRow } from '../lib/database.types'
+import { useAuth } from './useAuth'
 
 export function useTasks() {
+  const { profile } = useAuth()
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [completions, setCompletions] = useState<CompletionRow[]>([])
   const [profiles, setProfiles] = useState<ProfileRow[]>([])
@@ -32,6 +34,6 @@ export function useTasks() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => { void refresh() }, [refresh, profile?.main_spec, profile?.second_spec, profile?.third_spec])
   return { tasks, completions, setCompletions, profiles, loading, error, refresh }
 }
