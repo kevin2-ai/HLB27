@@ -53,7 +53,7 @@ export default function ProfileModal({ onClose }: { onClose: () => void }) {
     setBusy(false)
     if (error) setFeedback(error)
     else {
-      setFeedback('Spécialités enregistrées. Ton planning futur a été mis à jour.')
+      setFeedback('Spécialités enregistrées.')
       setEditingSpecialties(false)
     }
   }

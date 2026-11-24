@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Download, MailPlus, Minus, Plus, Trophy, Undo2 } from 'lucide-react'
+import { Crown, Download, MailPlus, Minus, Plus, Trophy, Undo2, UsersRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useTasks } from '../hooks/useTasks'
 import { useLeaderboard } from '../hooks/useLeaderboard'
 import { SPECIALTY_LABELS } from '../data/members'
-import type { CompletionRow } from '../lib/database.types'
+import type { CompletionRow, TeamMemberRow, TeamRow } from '../lib/database.types'
 import { formatPortoDateTime } from '../lib/dates'
 import { notifyScoresChanged } from '../lib/events'
 
 type InvitationRow = { email: string; member_key: string; pseudo: string; main_spec: string | null; second_spec: string | null; role: 'member' | 'admin'; created_at: string }
 type AdjustmentRow = { id: number; user_id: string; delta: number; reason: string; created_at: string }
-type TeamEventRow = { id: number; points: number; reason: string; created_at: string }
+type TeamEventRow = { id: number; points: number; reason: string; created_at: string; team_id: string | null }
 
 function csvCell(value: unknown) {
   const raw = String(value ?? '')
@@ -37,6 +37,8 @@ export default function AdminPage() {
   const [invitations, setInvitations] = useState<InvitationRow[]>([])
   const [adjustments, setAdjustments] = useState<AdjustmentRow[]>([])
   const [teamEvents, setTeamEvents] = useState<TeamEventRow[]>([])
+  const [teams, setTeams] = useState<TeamRow[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([])
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<CompletionRow | null>(null)
@@ -50,17 +52,21 @@ export default function AdminPage() {
       supabase.from('invitations').select('*').order('created_at', { ascending: false }),
       supabase.from('point_adjustments').select('*').order('created_at', { ascending: false }),
       supabase.from('team_score_events').select('*').order('created_at', { ascending: false }),
-    ]).then(([invites, points, scores]) => {
-      if (invites.error || points.error || scores.error) setFeedback('Impossible de charger toutes les données admin. Vérifie les politiques Supabase.')
+      supabase.from('teams').select('*').order('name'),
+      supabase.from('team_members').select('*'),
+    ]).then(([invites, points, scores, teamResult, rosterResult]) => {
+      if (invites.error || points.error || scores.error || teamResult.error || rosterResult.error) setFeedback('Impossible de charger toutes les données admin. Vérifie que la migration équipes a été exécutée dans Supabase.')
       else {
         setInvitations(invites.data ?? [])
         setAdjustments(points.data ?? [])
         setTeamEvents(scores.data ?? [])
+        setTeams(teamResult.data ?? [])
+        setTeamMembers(rosterResult.data ?? [])
       }
     })
   }, [])
 
-  async function submitAction(event: FormEvent<HTMLFormElement>, action: 'invite' | 'adjust' | 'team') {
+  async function submitAction(event: FormEvent<HTMLFormElement>, action: 'invite' | 'adjust' | 'team' | 'create-team') {
     event.preventDefault()
     if (!supabase || !user || busy) return
     const form = new FormData(event.currentTarget)
@@ -88,9 +94,9 @@ export default function AdminPage() {
         const { data } = await supabase.from('point_adjustments').select('*').order('created_at', { ascending: false })
         setAdjustments(data ?? [])
       }
-    } else {
+    } else if (action === 'team') {
       const { error: result } = await supabase.from('team_score_events').insert({
-        points: Number(form.get('points')), reason: String(form.get('reason')).trim(), created_by: user.id,
+        team_id: String(form.get('team_id')), points: Number(form.get('points')), reason: String(form.get('reason')).trim(), created_by: user.id,
       })
       error = result?.message ?? null
       if (!error) {
@@ -98,9 +104,24 @@ export default function AdminPage() {
         const { data } = await supabase.from('team_score_events').select('*').order('created_at', { ascending: false })
         setTeamEvents(data ?? [])
       }
+    } else {
+      const captainId = String(form.get('captain_id'))
+      const memberIds = form.getAll('member_ids').map(String).filter((id) => id !== captainId)
+      const { error: result } = await supabase.rpc('admin_create_team', {
+        p_name: String(form.get('team_name')).trim(), p_captain_id: captainId, p_member_ids: memberIds,
+      })
+      error = result?.message ?? null
+      if (!error) {
+        const [teamResult, rosterResult] = await Promise.all([
+          supabase.from('teams').select('*').order('name'),
+          supabase.from('team_members').select('*'),
+        ])
+        setTeams(teamResult.data ?? [])
+        setTeamMembers(rosterResult.data ?? [])
+      }
     }
     setBusy(false)
-    setFeedback(error ? 'Action refusée par Supabase. Vérifie les champs et les autorisations.' : 'Action enregistrée.')
+    setFeedback(error ? 'Action refusée par Supabase. Vérifie les champs, les migrations et les autorisations.' : action === 'create-team' ? 'Équipe créée avec son capitaine et ses membres.' : 'Action enregistrée.')
     if (!error) formElement.reset()
   }
 
@@ -169,18 +190,33 @@ export default function AdminPage() {
         <div className="admin-history">{adjustments.slice(0, 8).map((item) => <div className="admin-history-row" key={item.id}><strong>{profileById.get(item.user_id)?.pseudo}</strong><span className={item.delta < 0 ? 'negative' : ''}>{item.delta > 0 ? '+' : ''}{item.delta}</span><small>{item.reason}</small></div>)}</div>
       </article>
 
+      <article className="panel admin-card"><div className="section-title compact"><div><span className="eyebrow">NOUVELLE ÉQUIPE</span><h2>Créer une équipe</h2></div><UsersRound size={17} /></div>
+        <form className="admin-form" onSubmit={(event) => void submitAction(event, 'create-team')}>
+          <label>Nom de l’équipe<input name="team_name" required minLength={2} maxLength={40} placeholder="Ex. Les Cyber-lions" /></label>
+          <label>Capitaine<select name="captain_id" required defaultValue=""><option value="" disabled>Choisir le capitaine</option>{profiles.filter((profile) => !teamMembers.some((member) => member.profile_id === profile.id)).map((profile) => <option value={profile.id} key={profile.id}>{profile.pseudo}</option>)}</select></label>
+          <fieldset className="team-member-picks"><legend>Membres à ajouter</legend>{profiles.filter((profile) => !teamMembers.some((member) => member.profile_id === profile.id)).map((profile) => <label key={profile.id}><input type="checkbox" name="member_ids" value={profile.id} /><span>{profile.pseudo}</span></label>)}</fieldset>
+          <small className="field-help">Le capitaine sera automatiquement ajouté à son équipe.</small>
+          <button className="button-primary" disabled={busy || !profiles.length}><UsersRound size={15} /> Créer l’équipe</button>
+        </form>
+      </article>
+
       <article className="panel admin-card"><div className="section-title compact"><div><span className="eyebrow">SCORE D’ÉQUIPE</span><h2>Ajouter après une victoire</h2></div><Trophy size={17} /></div>
         <form className="admin-form" onSubmit={(event) => void submitAction(event, 'team')}>
+          <label>Équipe gagnante<select name="team_id" required defaultValue=""><option value="" disabled>Choisir une équipe</option>{teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label>
           <label>Points d’équipe<input name="points" type="number" min="-5000" max="5000" step="1" placeholder="Ex. 100" required /></label>
           <label>CTF et motif obligatoire<input name="reason" minLength={3} required placeholder="Victoire au CTF X" /></label>
-          <button className="button-primary" disabled={busy}><Trophy size={15} /> Ajouter au score d’équipe</button>
+          <button className="button-primary" disabled={busy || !teams.length}><Trophy size={15} /> Ajouter au score d’équipe</button>
         </form>
-        <div className="admin-history">{teamEvents.slice(0, 8).map((event) => <div className="admin-history-row" key={event.id}><strong>{event.reason}</strong><span>{event.points > 0 ? '+' : ''}{event.points}</span><small>{formatPortoDateTime(event.created_at)}</small></div>)}</div>
+        <div className="admin-history">{teamEvents.slice(0, 8).map((event) => <div className="admin-history-row" key={event.id}><strong>{teams.find((team) => team.id === event.team_id)?.name ?? 'Score historique'} · {event.reason}</strong><span className={event.points < 0 ? 'negative' : ''}>{event.points > 0 ? '+' : ''}{event.points}</span><small>{formatPortoDateTime(event.created_at)}</small></div>)}</div>
       </article>
 
       <article className="panel admin-card"><div className="section-title compact"><div><span className="eyebrow">INVITATIONS</span><h2>Suivi des membres</h2></div><span className="count-pill">{pendingCount} en attente</span></div>
         <div className="admin-history">{invitations.map((invitation) => { const registered = profiles.some((profile) => profile.member_key === invitation.member_key); return <div className="invitation-row" key={invitation.member_key}><div><strong>{invitation.pseudo}</strong><small>{invitation.email}</small></div><span className={registered ? 'status-registered' : 'status-pending'}>{registered ? 'Inscrit' : 'En attente'}</span></div> })}</div>
       </article>
+    </section>
+
+    <section className="admin-team-list">
+      {teams.map((team) => <article className="panel admin-card" key={team.id}><div className="section-title compact"><div><span className="eyebrow">ÉQUIPE</span><h2>{team.name}</h2></div><UsersRound size={17} /></div><div className="team-roster">{teamMembers.filter((member) => member.team_id === team.id).map((member) => <span key={member.profile_id}>{profileById.get(member.profile_id)?.pseudo ?? 'Membre'}{member.profile_id === team.captain_id && <span title="Capitaine"><Crown size={14} aria-label="Capitaine" /></span>}</span>)}</div></article>)}
     </section>
 
     <section className="panel admin-card completion-admin"><div className="section-title compact"><div><span className="eyebrow">VALIDATIONS</span><h2>Annuler ou restaurer une coche</h2></div><Undo2 size={17} /></div>
@@ -195,7 +231,7 @@ export default function AdminPage() {
       <div className="export-buttons">
         <button className="button-outline" onClick={() => downloadCsv('coches.csv', ['membre', 'tache', 'terminee_le', 'annulee_le', 'motif'], completions.map((item) => [profileById.get(item.user_id)?.pseudo, tasks.find((task) => task.id === item.task_id)?.title, item.completed_at, item.cancelled_at, item.cancel_reason]))}><Download size={14} /> Coches</button>
         <button className="button-outline" onClick={() => downloadCsv('ajustements.csv', ['membre', 'points', 'motif', 'date'], adjustments.map((item) => [profileById.get(item.user_id)?.pseudo, item.delta, item.reason, item.created_at]))}><Download size={14} /> Ajustements</button>
-        <button className="button-outline" onClick={() => downloadCsv('score-equipe.csv', ['points', 'motif', 'date'], teamEvents.map((item) => [item.points, item.reason, item.created_at]))}><Download size={14} /> Score d’équipe</button>
+        <button className="button-outline" onClick={() => downloadCsv('score-equipe.csv', ['equipe', 'points', 'motif', 'date'], teamEvents.map((item) => [teams.find((team) => team.id === item.team_id)?.name, item.points, item.reason, item.created_at]))}><Download size={14} /> Score d’équipe</button>
         <button className="button-outline" onClick={() => downloadCsv('classement.csv', ['rang', 'pseudo', 'points', 'seances_terminees'], leaderboard.map((item) => [item.rank, item.pseudo, item.points, item.sessions_done]))}><Download size={14} /> Classement</button>
       </div>
     </section>

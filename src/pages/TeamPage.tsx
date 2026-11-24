@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useReducedMotion } from 'framer-motion'
-import { Crown, Medal, Trophy } from 'lucide-react'
+import { Crown, Medal, Trophy, UsersRound } from 'lucide-react'
 import { useTasks } from '../hooks/useTasks'
 import { useLeaderboard } from '../hooks/useLeaderboard'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { MEMBERS } from '../data/members'
 import { CONFIG } from '../config'
 import { formatPortoDateTime } from '../lib/dates'
+import type { TeamMemberRow, TeamRow, TeamScoreRow } from '../lib/database.types'
 
 type Adjustment = { id: number; user_id: string; delta: number; reason: string; created_at: string }
-type TeamEvent = { id: number; points: number; reason: string; created_at: string }
+type TeamEvent = { id: number; points: number; reason: string; created_at: string; team_id: string | null }
 
 function dateLabel(value: string) {
   return formatPortoDateTime(value)
@@ -22,6 +22,9 @@ export default function TeamPage() {
   const { rows, teamScore, loading: scoreLoading, error: scoreError } = useLeaderboard()
   const [adjustments, setAdjustments] = useState<Adjustment[]>([])
   const [events, setEvents] = useState<TeamEvent[]>([])
+  const [teams, setTeams] = useState<TeamRow[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMemberRow[]>([])
+  const [teamScores, setTeamScores] = useState<TeamScoreRow[]>([])
   const [historyError, setHistoryError] = useState('')
   const [showConfetti, setShowConfetti] = useState(false)
   const reduceMotion = useReducedMotion()
@@ -30,12 +33,18 @@ export default function TeamPage() {
     if (!supabase) return
     Promise.all([
       supabase.from('point_adjustments').select('id,user_id,delta,reason,created_at').order('created_at', { ascending: false }).limit(10),
-      supabase.from('team_score_events').select('id,points,reason,created_at').order('created_at', { ascending: false }).limit(10),
-    ]).then(([adjustmentResult, eventResult]) => {
-      if (adjustmentResult.error || eventResult.error) setHistoryError('L’historique est temporairement indisponible.')
+      supabase.from('team_score_events').select('id,points,reason,created_at,team_id').order('created_at', { ascending: false }).limit(10),
+      supabase.from('teams').select('*').order('name'),
+      supabase.from('team_members').select('*'),
+      supabase.from('team_scores').select('*').order('points', { ascending: false }),
+    ]).then(([adjustmentResult, eventResult, teamResult, rosterResult, teamScoresResult]) => {
+      if (adjustmentResult.error || eventResult.error || teamResult.error || rosterResult.error || teamScoresResult.error) setHistoryError('L’historique ou les équipes sont indisponibles. Vérifie que la migration équipes a été exécutée.')
       else {
         setAdjustments(adjustmentResult.data ?? [])
         setEvents(eventResult.data ?? [])
+        setTeams(teamResult.data ?? [])
+        setTeamMembers(rosterResult.data ?? [])
+        setTeamScores(teamScoresResult.data ?? [])
         const latestId = eventResult.data?.[0]?.id
         if (latestId !== undefined) {
           const key = 'hackerlab:last-seen-team-event'
@@ -56,8 +65,9 @@ export default function TeamPage() {
     const counts = new Map<string, number>()
     completions.forEach((completion) => {
       if (completion.cancelled_at !== null) return
-      const week = taskById.get(completion.task_id)?.week
-      if (week === undefined) return
+      const task = taskById.get(completion.task_id)
+      const week = task?.week
+      if (week === undefined || task?.kind !== 'daily') return
       const key = `${completion.user_id}:${week}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     })
@@ -72,8 +82,8 @@ export default function TeamPage() {
       key: `a-${item.id}`, date: item.created_at, kind: 'adjustment',
       description: `${profileById.get(item.user_id)?.pseudo ?? 'Un membre'} : ajustement de ${item.delta > 0 ? '+' : ''}${item.delta} points · ${item.reason}`,
     })),
-    ...events.map((item) => ({ key: `t-${item.id}`, date: item.created_at, kind: 'team', description: `Score d’équipe +${item.points} · ${item.reason}` })),
-  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, 12), [adjustments, completions, events, profileById, taskById])
+    ...events.map((item) => ({ key: `t-${item.id}`, date: item.created_at, kind: 'team', description: `${item.team_id ? teams.find((team) => team.id === item.team_id)?.name ?? 'Une équipe' : 'Score collectif'} : ${item.points > 0 ? '+' : ''}${item.points} pts · ${item.reason}` })),
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, 12), [adjustments, completions, events, profileById, taskById, teams])
 
   const isLoading = taskLoading || scoreLoading
   return <div className="team-page">
@@ -82,6 +92,7 @@ export default function TeamPage() {
     {(taskError || scoreError || historyError) && <div className="notice warning">{taskError ?? scoreError ?? historyError}</div>}
     {isLoading ? <div className="panel loading-card">Chargement des scores…</div> : <>
       <section className="team-score-hero panel"><div className="team-trophy"><Trophy size={24} /></div><div><span className="eyebrow">SCORE D’ÉQUIPE</span><strong>{teamScore?.total ?? 0}</strong><p>Indépendant des scores individuels</p></div><span className="score-event-count">{teamScore?.events ?? 0} événement{teamScore?.events === 1 ? '' : 's'}</span></section>
+      <section className="teams-score-grid">{teamScores.map((team) => <article className="panel team-score-card-large" key={team.team_id}><div className="team-score-card-head"><UsersRound size={17} /><span>{team.events} victoire{team.events === 1 ? '' : 's'}</span></div><strong>{team.name}</strong><b>{team.points}<small> pts</small></b><div className="team-roster">{teamMembers.filter((member) => member.team_id === team.team_id).map((member) => <span key={member.profile_id}>{profileById.get(member.profile_id)?.pseudo ?? 'Membre'}{member.profile_id === team.captain_id && <span title="Capitaine"><Crown size={13} aria-label="Capitaine" /></span>}</span>)}</div></article>)}{!teamScores.length && <div className="panel empty-inline">Les équipes créées par l’administrateur apparaîtront ici.</div>}</section>
       <div className="team-columns">
         <section className="panel leaderboard-panel"><div className="section-title"><div><span className="eyebrow">CLASSEMENT GÉNÉRAL</span><h2>Points individuels</h2></div><Medal size={19} /></div>
           {rows.map((row) => <div className={`leaderboard-row${row.user_id === user?.id ? ' mine' : ''}${row.rank <= 3 ? ` podium podium-${row.rank}` : ''}`} key={row.user_id}>
@@ -89,9 +100,9 @@ export default function TeamPage() {
           </div>)}
           {!rows.length && <p className="muted-copy">Le classement s’affichera dès la création des premiers comptes.</p>}
         </section>
-        <section className="panel wins-panel"><div className="section-title"><div><span className="eyebrow">VICTOIRES CTF</span><h2>Score d’équipe</h2></div><Trophy size={18} /></div>
-          {!events.length && <p className="muted-copy">Les événements ajoutés par Kevin apparaîtront ici.</p>}
-          {events.map((event) => <article className="win-event" key={event.id}><div><strong>{event.reason}</strong><small>{dateLabel(event.created_at)}</small></div><b>+{event.points}</b></article>)}
+          <section className="panel wins-panel"><div className="section-title"><div><span className="eyebrow">VICTOIRES CTF</span><h2>Résultats des équipes</h2></div><Trophy size={18} /></div>
+          {!events.length && <p className="muted-copy">Les victoires ajoutées par l’administrateur apparaîtront ici.</p>}
+          {events.map((event) => <article className="win-event" key={event.id}><div><strong>{teams.find((team) => team.id === event.team_id)?.name ?? 'Score collectif'} · {event.reason}</strong><small>{dateLabel(event.created_at)}</small></div><b>{event.points > 0 ? '+' : ''}{event.points}</b></article>)}
         </section>
       </div>
 
@@ -104,9 +115,9 @@ export default function TeamPage() {
         <div className="progress-legend"><span><i className="tile-empty" /> aucune</span><span><i className="tile-some" /> séances cochées</span><span><i className="tile-full" /> 7 séances</span></div>
         <div className="progress-scroll"><div className="progress-grid">
           <div className="progress-member-head" />{Array.from({ length: CONFIG.TOTAL_WEEKS }, (_, i) => <span className="progress-week-head" key={i}>S{i + 1}</span>)}
-          {MEMBERS.map((member) => {
-            const memberId = profiles.find((profile) => profile.member_key === member.key)?.id
-            return <div className="progress-member-row" key={member.key}>
+          {profiles.map((member) => {
+            const memberId = member.id
+            return <div className="progress-member-row" key={member.id}>
               <strong>{member.pseudo}</strong>
               {Array.from({ length: CONFIG.TOTAL_WEEKS }, (_, i) => {
                 const count = memberId ? progressCounts.get(`${memberId}:${i + 1}`) ?? 0 : 0
