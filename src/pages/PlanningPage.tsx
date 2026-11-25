@@ -73,9 +73,12 @@ export default function PlanningPage() {
       .insert({ user_id: user.id, task_id: activeTask.id, writeup_url: result.url })
       .select('*').single()
     if (insertError || !data) {
-      setActionError(insertError?.message.toLowerCase().includes('seule la case')
+      const serverMessage = insertError?.message.toLowerCase() ?? ''
+      setActionError(serverMessage.includes('seule la case')
         ? 'Seule la case du jour actuel peut être validée.'
-        : 'La validation a échoué. Vérifie le lien puis réessaie.')
+        : serverMessage.includes('lien') || serverMessage.includes('markdown')
+          ? 'Le lien doit commencer par https://github.com/kevin2-ai/HLB-write-up/ et se terminer par .md.'
+          : 'La validation a échoué. Vérifie ta connexion puis réessaie.')
       setBusy(false)
       return
     }
